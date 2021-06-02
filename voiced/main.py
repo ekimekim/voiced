@@ -1,8 +1,31 @@
 
+import json
 import logging
+from collections import namedtuple
+
+import gevent
+from gevent.subprocess import PIPE, Popen
+
+from .util import kill_on_exit
 
 
 ListenResponse = namedtuple('ListenResponse', ['text', 'intent', 'groups'])
+
+
+def play(sound):
+	# TODO
+	logging.info("PLAY STUB: {}".format(sound))
+
+class sounds(object):
+	"""Stub. Eventually will be a namespace pointing to sound files."""
+	# TODO
+	ACK = "ack"
+	ERROR = "error"
+	QUESTION = "question"
+
+def run_intent(response):
+	# TODO
+	logging.info("RUN INTENT STUB: {}".format(response))
 
 
 def _run_listener(ready, open, timeout):
@@ -22,7 +45,7 @@ def _run_listener(ready, open, timeout):
 		logging.debug("Started transcriber with args: {}".format(args))
 
 		if not open:
-			recognizer = Popen(['voice2json', 'recognize-intent'], stdin=PIPE, stdout=PIPE)
+			recognizer = Popen(['voice2json', 'recognize-intent'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 			procs.append(recognizer)
 			logging.debug("Started recognizer")
 
@@ -30,11 +53,13 @@ def _run_listener(ready, open, timeout):
 		for line in transcriber.stderr:
 			if line.strip() == 'Ready':
 				break
+		else:
+			raise Exception("Transcriber died without becoming ready")
 		logging.debug("Transcriber is ready")
 		ready.set()
 
 		# Wait until transcriber exits, or timeout expires.
-		transcribed = None
+		transcription = None
 		with gevent.Timeout(timeout, False):
 			transcription = transcriber.stdout.read()
 
@@ -58,9 +83,9 @@ def _run_listener(ready, open, timeout):
 			)
 
 		# Feed the transcription through the recognizer
-		response, _ = recognizer.communicate(transcription)
+		response, stderr = recognizer.communicate(transcription)
 		if recognizer.wait() != 0:
-			raise Exception("Recognizer exited with status: {}".format(recognizer.returncode))
+			raise Exception("Recognizer exited with status: {}\n{}".format(recognizer.returncode, stderr))
 		logging.debug("Got event from recognizer: {}".format(response))
 
 		# Finally, parse it into a ListenResponse
@@ -98,6 +123,21 @@ def start_listening(open=False, timeout=10):
 	listener = gevent.spawn(_run_listener, ready, open, timeout)
 	gevent.wait([ready, listener], count=1) # wait for either, in case listener dies
 	return listener
+
+
+def wait_for_wake():
+	proc = Popen(["voice2json", "wait-wake", "--exit-count", "1"], stdout=PIPE, stderr=PIPE)
+	try:
+		stdout, stderr = proc.communicate()
+		if proc.wait() != 0:
+			raise Exception("wait-wake exited with status: {}\n{}".format(proc.returncode, stderr))
+	finally:
+		try:
+			if proc.poll() is None:
+				proc.kill()
+		except EnvironmentError:
+			pass
+	logging.debug("Got output from wait-wake: {}".format(stdout))
 
 
 def wake_and_listen():
