@@ -6,22 +6,12 @@ from collections import namedtuple
 import gevent
 from gevent.subprocess import PIPE, Popen
 
+from . import sounds
 from .util import kill_on_exit
 
 
 ListenResponse = namedtuple('ListenResponse', ['text', 'intent', 'groups'])
 
-
-def play(sound):
-	# TODO
-	logging.info("PLAY STUB: {}".format(sound))
-
-class sounds(object):
-	"""Stub. Eventually will be a namespace pointing to sound files."""
-	# TODO
-	ACK = "ack"
-	ERROR = "error"
-	QUESTION = "question"
 
 def run_intent(response):
 	# TODO
@@ -161,7 +151,7 @@ def wake_and_listen():
 			#  3. get unknown result
 			#  4. start listening again
 			#  5. question beep
-			play(sounds.ACK if attempt == 1 else sounds.QUESTION)
+			sounds.play(sounds.ACK if attempt == 0 else sounds.QUESTION)
 
 			# Block until listener has detected something, failed, or timeout expires.
 			response = listener.get()
@@ -172,7 +162,7 @@ def wake_and_listen():
 		# to wake us.
 		if not response:
 			logging.info("No response within timeout, giving up")
-			play(sounds.ERROR)
+			sounds.play(sounds.ERROR)
 			return
 
 		# If listener found no recognizable intent, try again.
@@ -189,7 +179,7 @@ def wake_and_listen():
 	# If we reach here, it means we got an unknown intent 3 times in a row.
 	# Play an error beep and give up.
 	logging.info("Ran out of attempts, giving up")
-	play(sounds.ERROR)
+	sounds.play(sounds.ERROR)
 
 
 def main():
@@ -203,6 +193,6 @@ def main():
 			logging.exception("Error in listen loop")
 			# play() might also fail, if it does there's not much we can do though.
 			try:
-				play(sounds.ERROR)
+				sounds.play(sounds.ERROR)
 			except Exception:
 				logging.exception("Error while trying to tell user about previous error")
