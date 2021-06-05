@@ -6,16 +6,13 @@ from collections import namedtuple
 import gevent
 from gevent.subprocess import PIPE, Popen
 
+from . import intents as _ # for side effects
 from . import sounds
+from .intent import run_intent
 from .util import kill_on_exit
 
 
 ListenResponse = namedtuple('ListenResponse', ['text', 'intent', 'groups'])
-
-
-def run_intent(response):
-	# TODO
-	logging.info("RUN INTENT STUB: {}".format(response))
 
 
 def _run_listener(ready, open, timeout):
@@ -116,6 +113,8 @@ def start_listening(open=False, timeout=10):
 
 
 def wait_for_wake():
+	# TODO: Instead of one-shot, have it always running but discard all pending wakes
+	# each time we start waiting.
 	proc = Popen(["voice2json", "wait-wake", "--exit-count", "1"], stdout=PIPE, stderr=PIPE)
 	try:
 		stdout, stderr = proc.communicate()
