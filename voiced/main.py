@@ -9,7 +9,7 @@ from gevent.subprocess import PIPE, Popen
 from . import intents as _ # for side effects
 from . import sounds
 from .intent import run_intent
-from .util import kill_on_exit
+from .util import kill_on_exit, run_command
 
 
 ListenResponse = namedtuple('ListenResponse', ['text', 'intent', 'groups'])
@@ -115,17 +115,7 @@ def start_listening(open=False, timeout=10):
 def wait_for_wake():
 	# TODO: Instead of one-shot, have it always running but discard all pending wakes
 	# each time we start waiting.
-	proc = Popen(["voice2json", "wait-wake", "--exit-count", "1"], stdout=PIPE, stderr=PIPE)
-	try:
-		stdout, stderr = proc.communicate()
-		if proc.wait() != 0:
-			raise Exception("wait-wake exited with status: {}\n{}".format(proc.returncode, stderr))
-	finally:
-		try:
-			if proc.poll() is None:
-				proc.kill()
-		except EnvironmentError:
-			pass
+	stdout = run_command("voice2json", "wait-wake", "--exit-count", "1")
 	logging.debug("Got output from wait-wake: {}".format(stdout))
 
 
